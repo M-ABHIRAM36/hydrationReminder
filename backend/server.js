@@ -26,40 +26,58 @@ if (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.H
   console.log('🔒 Trust proxy enabled for deployment platform');
 }
 
+
+// CORS configuration (MUST be before rate limiting and all routes)
+let allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173'
+];
+if (process.env.ALLOWED_ORIGINS) {
+  allowedOrigins = process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim());
+}
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+allowedOrigins = Array.from(new Set(allowedOrigins.filter(Boolean)));
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    // Normalize origin for localhost
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      callback(null, true);
+    } else {
+      console.warn('⚠️ CORS blocked request from:', origin);
+      callback(null, false); // Respond with no CORS headers, not error
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
+
+// Explicit OPTIONS handler for CORS preflight
+app.options('*', cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 // Security middleware
 app.use(helmet());
 
-// Rate limiting
+// Rate limiting (after CORS)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again later.'
 });
 app.use(limiter);
-
-// CORS configuration
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:5173', // Vite dev server
-  process.env.FRONTEND_URL
-].filter(Boolean);
-
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.warn('⚠️ CORS blocked request from:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -149,16 +167,9 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   
-  // Start notification cron job (check for test mode)
-  const testMode = process.env.NOTIFICATION_TEST_MODE === 'true';
-  notificationCron.start(testMode);
-  
-  if (testMode) {
-    console.log('🧪 Notification cron job started in TEST MODE (1-minute intervals)');
-    console.log('⚠️ Set NOTIFICATION_TEST_MODE=false or remove it for production');
-  } else {
-    console.log('⏰ Notification cron job started in PRODUCTION MODE (1-hour intervals)');
-  }
+  // Start notification cron job (production mode only)
+  notificationCron.start(false);
+  console.log('⏰ Notification cron job started in PRODUCTION MODE (1-hour intervals)');
 });
 
 // Graceful shutdown

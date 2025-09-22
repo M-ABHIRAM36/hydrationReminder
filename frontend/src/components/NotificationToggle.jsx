@@ -4,7 +4,11 @@ import apiMethods from '../api/api'
 const NotificationToggle = () => {
   const [isSupported, setIsSupported] = useState(false)
   const [permission, setPermission] = useState('default')
-  const [isSubscribed, setIsSubscribed] = useState(false)
+  const [isSubscribed, setIsSubscribed] = useState(() => {
+    // Try to restore from localStorage for persistence
+    const saved = localStorage.getItem('notificationsEnabled');
+    return saved === 'true';
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [vapidKey, setVapidKey] = useState(null)
@@ -50,8 +54,10 @@ const NotificationToggle = () => {
           )
           
           setIsSubscribed(subscriptionExists)
+          localStorage.setItem('notificationsEnabled', subscriptionExists)
         } else {
           setIsSubscribed(false)
+          localStorage.setItem('notificationsEnabled', 'false')
         }
       }
     } catch (error) {
@@ -121,7 +127,8 @@ const NotificationToggle = () => {
       // Update user notification preference
       await apiMethods.post('/notifications/toggle', { enabled: true })
 
-      setIsSubscribed(true)
+  setIsSubscribed(true)
+  localStorage.setItem('notificationsEnabled', 'true')
       showSuccessMessage('Notifications enabled successfully!')
 
     } catch (error) {
@@ -154,7 +161,8 @@ const NotificationToggle = () => {
       // Update user notification preference
       await apiMethods.post('/notifications/toggle', { enabled: false })
 
-      setIsSubscribed(false)
+  setIsSubscribed(false)
+  localStorage.setItem('notificationsEnabled', 'false')
       showSuccessMessage('Notifications disabled successfully!')
 
     } catch (error) {
@@ -165,20 +173,7 @@ const NotificationToggle = () => {
     }
   }
 
-  const sendTestNotification = async () => {
-    if (!isSubscribed) return
 
-    setLoading(true)
-    try {
-      await apiMethods.post('/notifications/test')
-      showSuccessMessage('Test notification sent!')
-    } catch (error) {
-      console.error('Failed to send test:', error)
-      setError('Failed to send test notification')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const arrayBufferToBase64 = (buffer) => {
     const bytes = new Uint8Array(buffer)
@@ -315,16 +310,7 @@ const NotificationToggle = () => {
               )}
             </button>
 
-            <button
-              onClick={sendTestNotification}
-              disabled={loading}
-              className="btn-outline flex items-center"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 4v10a2 2 0 002 2h6a2 2 0 002-2V8M7 8h10M10 12h4"/>
-              </svg>
-              Test Notification
-            </button>
+
           </>
         )}
       </div>

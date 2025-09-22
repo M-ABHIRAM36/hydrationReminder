@@ -20,13 +20,15 @@ let testCronJob;
  */
 const sendHydrationReminders = async (isTestMode = false) => {
   try {
-    const now = new Date();
-    const currentHour = now.getUTCHours();
-    const currentMinute = now.getUTCMinutes();
-    
-    const modeText = isTestMode ? 'TEST' : 'PRODUCTION';
-    const timeText = isTestMode ? `${currentHour}:${currentMinute.toString().padStart(2, '0')}` : `${currentHour}:00`;
-    console.log(`⏰ [${modeText}] Starting hydration reminder for time ${timeText} UTC...`);
+  // Use IST (Asia/Kolkata) for all time calculations
+  const now = new Date();
+  const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const currentHour = istNow.getHours();
+  const currentMinute = istNow.getMinutes();
+
+  const modeText = isTestMode ? 'TEST' : 'PRODUCTION';
+  const timeText = isTestMode ? `${currentHour}:${currentMinute.toString().padStart(2, '0')}` : `${currentHour}:00`;
+  console.log(`⏰ [${modeText}] Starting hydration reminder for time ${timeText} IST...`);
 
     // Get all active subscriptions with users who have notifications enabled
     const subscriptions = await Subscription.getAllActiveSubscriptions();
@@ -98,19 +100,21 @@ const sendHydrationReminders = async (isTestMode = false) => {
     for (let i = 0; i < results.length; i++) {
       const { result } = results[i];
       const subscription = enabledSubscriptions[i];
-
       try {
         if (result.success) {
           await subscription.markAsSuccessful();
+          // Update user's lastNotificationAt for true frequency enforcement
+          if (subscription.userId && subscription.userId.lastNotificationAt !== undefined) {
+            subscription.userId.lastNotificationAt = new Date();
+            await subscription.userId.save();
+          }
           successCount++;
         } else {
           const failureInfo = handleFailedNotification(subscription, result.error);
           await subscription.markAsFailed(result.error);
-          
           if (failureInfo.shouldRemove) {
             console.log(`🗑️ Removing invalid subscription: ${subscription.endpoint}`);
           }
-          
           failedCount++;
         }
       } catch (error) {
@@ -136,8 +140,7 @@ const logHourlySummary = (hour, successCount, failedCount) => {
   const time = `${hour.toString().padStart(2, '0')}:00`;
   const total = successCount + failedCount;
   const successRate = total > 0 ? Math.round((successCount / total) * 100) : 0;
-  
-  console.log(`📊 Hour ${time} Summary: ${successCount}/${total} (${successRate}%) successful`);
+  console.log(`📊 Hour ${time} IST Summary: ${successCount}/${total} (${successRate}%) successful`);
 };
 
 /**
@@ -198,40 +201,27 @@ const sendTestNotification = async () => {
  * Start the cron job scheduler
  * @param {boolean} testMode - Whether to run in test mode (1-minute intervals)
  */
-const start = (testMode = false) => {
-  const isTestMode = testMode || process.env.NOTIFICATION_TEST_MODE === 'true';
-  
-  if (cronJob || testCronJob) {
+const start = () => {
+  if (cronJob) {
     console.log('⏰ Cron job already running');
     return;
   }
+  // PRODUCTION MODE: Run every minute (for dev/test) in IST
+  console.log('🎆 Starting in PRODUCTION MODE - notifications every minute (IST)');
+  cronJob = cron.schedule('* * * * *', () => sendHydrationReminders(false), {
+    scheduled: true,
+    timezone: 'Asia/Kolkata' // Use IST (Indian Standard Time)
+  });
+  console.log('⏰ Production cron job started: Every minute (IST)');
 
-  if (isTestMode) {
-    // TEST MODE: Run every minute for testing
-    console.log('🧪 Starting in TEST MODE - notifications every minute');
-    testCronJob = cron.schedule('* * * * *', () => sendHydrationReminders(true), {
-      scheduled: true,
-      timezone: 'UTC'
-    });
-    console.log('🧪 Test cron job started: Every minute');
-  } else {
-    // PRODUCTION MODE: Run every hour
-    console.log('🎆 Starting in PRODUCTION MODE - notifications every hour');
-    cronJob = cron.schedule('0 * * * *', () => sendHydrationReminders(false), {
-      scheduled: true,
-      timezone: 'UTC' // Use UTC, users can set their timezone in profile
-    });
-    console.log('⏰ Production cron job started: Every hour');
-  }
-
-  // Schedule daily cleanup at 3 AM UTC (both modes)
+  // Schedule daily cleanup at 3 AM IST
   const cleanupJob = cron.schedule('0 3 * * *', cleanupSubscriptions, {
     scheduled: true,
-    timezone: 'UTC'
+    timezone: 'Asia/Kolkata'
   });
 
-  console.log('📅 Schedule: ' + (isTestMode ? 'Every minute (TEST)' : 'Every hour (filtered by user preferences)'));
-  console.log('🧹 Cleanup: Daily at 3 AM UTC');
+  console.log('📅 Schedule: Every minute (filtered by user preferences, IST)');
+  console.log('🧹 Cleanup: Daily at 3 AM IST');
 };
 
 /**
@@ -317,8 +307,5 @@ module.exports = {
   stop,
   getStatus,
   triggerManual,
-  sendTestNotification,
-  cleanupSubscriptions,
-  startTestMode,
-  startProductionMode
+  cleanupSubscriptions
 };

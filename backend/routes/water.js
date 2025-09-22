@@ -83,7 +83,7 @@ router.post('/log', async (req, res) => {
 router.post('/log/quick', async (req, res) => {
   try {
     const userId = getUserIdFromRequest(req);
-    const { customAmount, notes } = req.body;
+    let { customAmount, notes } = req.body;
 
     // Get user's default water amount
     const user = await User.findById(userId).select('defaultWaterAmount');
@@ -94,8 +94,11 @@ router.post('/log/quick', async (req, res) => {
       });
     }
 
-    // Use custom amount if provided, otherwise use default
-    const amountMl = customAmount || user.defaultWaterAmount;
+    // Always use user's defaultWaterAmount for notification auto-log if customAmount is not provided
+    if (!customAmount || isNaN(customAmount)) {
+      customAmount = user.defaultWaterAmount;
+    }
+    const amountMl = customAmount;
 
     // Validate amount
     if (!amountMl || amountMl <= 0) {
@@ -116,7 +119,7 @@ router.post('/log/quick', async (req, res) => {
     const waterLog = new WaterLog({
       userId: userId,
       amountMl: amountMl,
-      type: customAmount ? 'custom' : 'notification',
+      type: req.body.customAmount ? 'custom' : 'notification',
       notes: notes || 'Quick log from notification',
       timestamp: new Date()
     });
@@ -132,10 +135,10 @@ router.post('/log/quick', async (req, res) => {
         notes: waterLog.notes,
         timestamp: waterLog.timestamp
       },
-      wasDefault: !customAmount
+      wasDefault: !req.body.customAmount
     });
 
-    console.log(`💧 Quick water logged: ${amountMl}ml for user ${userId} ${customAmount ? '(custom)' : '(default)'}`);
+    console.log(`💧 Quick water logged: ${amountMl}ml for user ${userId} ${req.body.customAmount ? '(custom)' : '(default)'}`);
 
   } catch (error) {
     console.error('Quick water logging error:', error);
