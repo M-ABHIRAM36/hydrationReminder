@@ -160,7 +160,8 @@ userSchema.methods.shouldReceiveNotificationAtHour = function(currentHour, curre
   }
   
   // Enforce true frequency using lastNotificationAt
-  const now = new Date();
+  // Always compare in UTC milliseconds to avoid timezone mismatch
+  const now = Date.now();
   let minIntervalMs = 0;
   switch (frequency) {
     case '1min':
@@ -174,7 +175,7 @@ userSchema.methods.shouldReceiveNotificationAtHour = function(currentHour, curre
       minIntervalMs = 60 * 60 * 1000; break;
   }
   if (this.lastNotificationAt) {
-    const last = new Date(this.lastNotificationAt);
+    const last = new Date(this.lastNotificationAt).getTime();
     if (now - last < minIntervalMs) {
       return false;
     }
