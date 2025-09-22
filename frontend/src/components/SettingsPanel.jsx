@@ -290,7 +290,7 @@ const SettingsPanel = ({ user }) => {
               max="5000"
               step="50"
               value={settings.dailyGoal}
-              onChange={(e) => handleInputChange('dailyGoal', parseInt(e.target.value) || 2000)}
+              onChange={(e) => handleInputChange('dailyGoal', parseInt(e.target.value))}
               className={`input-field ${validationErrors.dailyGoal ? 'border-red-300 focus:border-red-500' : ''}`}
             />
             {validationErrors.dailyGoal && (
@@ -333,7 +333,7 @@ const SettingsPanel = ({ user }) => {
                 max="1000"
                 step="25"
                 value={settings.defaultWaterAmount}
-                onChange={(e) => handleInputChange('defaultWaterAmount', parseInt(e.target.value) || 250)}
+                onChange={(e) => handleInputChange('defaultWaterAmount', e.target.value)}
                 className={`input-field ${validationErrors.defaultWaterAmount ? 'border-red-300 focus:border-red-500' : ''}`}
               />
               {validationErrors.defaultWaterAmount && (
