@@ -100,19 +100,21 @@ const sendHydrationReminders = async (isTestMode = false) => {
     for (let i = 0; i < results.length; i++) {
       const { result } = results[i];
       const subscription = enabledSubscriptions[i];
-
       try {
         if (result.success) {
           await subscription.markAsSuccessful();
+          // Update user's lastNotificationAt for true frequency enforcement
+          if (subscription.userId && subscription.userId.lastNotificationAt !== undefined) {
+            subscription.userId.lastNotificationAt = new Date();
+            await subscription.userId.save();
+          }
           successCount++;
         } else {
           const failureInfo = handleFailedNotification(subscription, result.error);
           await subscription.markAsFailed(result.error);
-          
           if (failureInfo.shouldRemove) {
             console.log(`🗑️ Removing invalid subscription: ${subscription.endpoint}`);
           }
-          
           failedCount++;
         }
       } catch (error) {

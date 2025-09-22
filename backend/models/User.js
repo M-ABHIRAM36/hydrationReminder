@@ -6,6 +6,10 @@ const bcrypt = require('bcryptjs');
  * Includes email, password (hashed), and account metadata
  */
 const userSchema = new mongoose.Schema({
+  lastNotificationAt: {
+    type: Date,
+    default: null
+  },
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -155,34 +159,27 @@ userSchema.methods.shouldReceiveNotificationAtHour = function(currentHour, curre
     return false;
   }
   
-  // Apply frequency rules based on test mode and frequency
-  if (isTestMode) {
-    // In test mode (1-minute cron), only send to users with 1min frequency
-    switch (frequency) {
-      case '1min':
-        return true; // Send every minute
-      case '30min':
-        return currentMinute % 30 === 0; // Every 30 minutes
-      case '2hr':
-        return currentMinute % 120 === 0; // Every 2 hours
-      case '1hr':
-      default:
-        return currentMinute % 60 === 0; // Every hour
-    }
-  } else {
-    // In production mode (1-hour cron), apply normal frequency rules
-    switch (frequency) {
-      case '1min':
-        return currentMinute === 0; // Only at top of hour in production
-      case '30min':
-        return currentMinute === 0 || currentMinute === 30;
-      case '2hr':
-        return currentHour % 2 === 0 && currentMinute === 0;
-      case '1hr':
-      default:
-        return currentMinute === 0;
+  // Enforce true frequency using lastNotificationAt
+  const now = new Date();
+  let minIntervalMs = 0;
+  switch (frequency) {
+    case '1min':
+      minIntervalMs = 60 * 1000; break;
+    case '30min':
+      minIntervalMs = 30 * 60 * 1000; break;
+    case '2hr':
+      minIntervalMs = 2 * 60 * 60 * 1000; break;
+    case '1hr':
+    default:
+      minIntervalMs = 60 * 60 * 1000; break;
+  }
+  if (this.lastNotificationAt) {
+    const last = new Date(this.lastNotificationAt);
+    if (now - last < minIntervalMs) {
+      return false;
     }
   }
+  return true;
 };
 
 /**
