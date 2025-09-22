@@ -4,7 +4,11 @@ import apiMethods from '../api/api'
 const NotificationToggle = () => {
   const [isSupported, setIsSupported] = useState(false)
   const [permission, setPermission] = useState('default')
-  const [isSubscribed, setIsSubscribed] = useState(false)
+  const [isSubscribed, setIsSubscribed] = useState(() => {
+    // Try to restore from localStorage for persistence
+    const saved = localStorage.getItem('notificationsEnabled');
+    return saved === 'true';
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [vapidKey, setVapidKey] = useState(null)
@@ -50,8 +54,10 @@ const NotificationToggle = () => {
           )
           
           setIsSubscribed(subscriptionExists)
+          localStorage.setItem('notificationsEnabled', subscriptionExists)
         } else {
           setIsSubscribed(false)
+          localStorage.setItem('notificationsEnabled', 'false')
         }
       }
     } catch (error) {
@@ -121,7 +127,8 @@ const NotificationToggle = () => {
       // Update user notification preference
       await apiMethods.post('/notifications/toggle', { enabled: true })
 
-      setIsSubscribed(true)
+  setIsSubscribed(true)
+  localStorage.setItem('notificationsEnabled', 'true')
       showSuccessMessage('Notifications enabled successfully!')
 
     } catch (error) {
@@ -154,7 +161,8 @@ const NotificationToggle = () => {
       // Update user notification preference
       await apiMethods.post('/notifications/toggle', { enabled: false })
 
-      setIsSubscribed(false)
+  setIsSubscribed(false)
+  localStorage.setItem('notificationsEnabled', 'false')
       showSuccessMessage('Notifications disabled successfully!')
 
     } catch (error) {
