@@ -198,39 +198,26 @@ const sendTestNotification = async () => {
  * Start the cron job scheduler
  * @param {boolean} testMode - Whether to run in test mode (1-minute intervals)
  */
-const start = (testMode = false) => {
-  const isTestMode = testMode || process.env.NOTIFICATION_TEST_MODE === 'true';
-  
-  if (cronJob || testCronJob) {
+const start = () => {
+  if (cronJob) {
     console.log('⏰ Cron job already running');
     return;
   }
+  // PRODUCTION MODE: Run every hour
+  console.log('🎆 Starting in PRODUCTION MODE - notifications every hour');
+  cronJob = cron.schedule('0 * * * *', () => sendHydrationReminders(false), {
+    scheduled: true,
+    timezone: 'UTC' // Use UTC, users can set their timezone in profile
+  });
+  console.log('⏰ Production cron job started: Every hour');
 
-  if (isTestMode) {
-    // TEST MODE: Run every minute for testing
-    console.log('🧪 Starting in TEST MODE - notifications every minute');
-    testCronJob = cron.schedule('* * * * *', () => sendHydrationReminders(true), {
-      scheduled: true,
-      timezone: 'UTC'
-    });
-    console.log('🧪 Test cron job started: Every minute');
-  } else {
-    // PRODUCTION MODE: Run every hour
-    console.log('🎆 Starting in PRODUCTION MODE - notifications every hour');
-    cronJob = cron.schedule('0 * * * *', () => sendHydrationReminders(false), {
-      scheduled: true,
-      timezone: 'UTC' // Use UTC, users can set their timezone in profile
-    });
-    console.log('⏰ Production cron job started: Every hour');
-  }
-
-  // Schedule daily cleanup at 3 AM UTC (both modes)
+  // Schedule daily cleanup at 3 AM UTC
   const cleanupJob = cron.schedule('0 3 * * *', cleanupSubscriptions, {
     scheduled: true,
     timezone: 'UTC'
   });
 
-  console.log('📅 Schedule: ' + (isTestMode ? 'Every minute (TEST)' : 'Every hour (filtered by user preferences)'));
+  console.log('📅 Schedule: Every hour (filtered by user preferences)');
   console.log('🧹 Cleanup: Daily at 3 AM UTC');
 };
 
@@ -317,8 +304,5 @@ module.exports = {
   stop,
   getStatus,
   triggerManual,
-  sendTestNotification,
-  cleanupSubscriptions,
-  startTestMode,
-  startProductionMode
+  cleanupSubscriptions
 };
