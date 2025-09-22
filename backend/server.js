@@ -26,19 +26,8 @@ if (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.H
   console.log('🔒 Trust proxy enabled for deployment platform');
 }
 
-// Security middleware
-app.use(helmet());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-});
-app.use(limiter);
-
-
-// CORS configuration
+// CORS configuration (MUST be before rate limiting and all routes)
 let allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173'
@@ -78,6 +67,17 @@ app.options('*', cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Security middleware
+app.use(helmet());
+
+// Rate limiting (after CORS)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.'
+});
+app.use(limiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
