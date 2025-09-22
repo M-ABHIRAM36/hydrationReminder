@@ -62,7 +62,7 @@ const userSchema = new mongoose.Schema({
   },
   timezone: {
     type: String,
-    default: 'UTC'
+    default: 'Asia/Kolkata'
   }
 }, {
   timestamps: true, // Adds createdAt and updatedAt
@@ -141,8 +141,8 @@ userSchema.methods.shouldReceiveNotificationAtHour = function(currentHour, curre
   
   // Handle cases where end hour is next day (e.g., 22 to 2 means 10 PM to 2 AM)
   if (endHour === 0) {
-    // Special case: end at midnight (0 = 24)
-    withinTimeWindow = currentHour >= startHour || currentHour === 0;
+    // End at midnight: window is from startHour to 23 (inclusive), not including 0:00
+    withinTimeWindow = currentHour >= startHour && currentHour < 24;
   } else if (startHour <= endHour) {
     // Same day range (e.g., 9 AM to 5 PM)
     withinTimeWindow = currentHour >= startHour && currentHour <= endHour;

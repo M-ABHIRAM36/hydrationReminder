@@ -214,34 +214,35 @@ self.addEventListener('notificationclick', (event) => {
     console.log('[SW] Test notification action:', action || 'default click')
   }
 
-  // ALWAYS play water alert sound first for any notification click
+  // ALWAYS play water alert sound and trigger auto-log for any notification click
   event.waitUntil(
-    playNotificationSound().then(() => {
+    playNotificationSound().then(async () => {
       // Show test notification feedback if it's a test
       if (isTestNotification) {
         console.log('[SW] 🎉 Test notification click handling completed!')
-        return self.registration.showNotification('Test Successful! ✅', {
+        await self.registration.showNotification('Test Successful! ✅', {
           body: 'Water alert sound triggered! Audio system working properly.',
           icon: '/icons/icon-192x192.png',
           tag: 'test-success',
           requireInteraction: false,
           silent: true,
           data: { isTestResult: true }
-        }).then(() => openAppAndFocusTab('/?test=notification-success'))
+        });
+        await openAppAndFocusTab('/?test=notification-success');
+        return;
       }
-      
-      // Then handle specific actions for regular notifications
-      if (action === 'log-water') {
-        // Log water automatically and show success
-        return logWaterAutomatically().then(() => {
-          return openAppAndFocusTab('/?action=water-logged')
-        })
+
+      // For log-water action or default click, trigger auto-log
+      if (action === 'log-water' || !action) {
+        await logWaterAutomatically();
+        await openAppAndFocusTab('/?action=water-logged');
+        return;
       } else if (action === 'snooze') {
         // Snooze for 30 minutes (show another notification)
-        return scheduleSnoozeNotification()
+        return scheduleSnoozeNotification();
       } else {
         // Default action - open app
-        return openAppAndFocusTab('/?notification=clicked')
+        return openAppAndFocusTab('/?notification=clicked');
       }
     })
   )
