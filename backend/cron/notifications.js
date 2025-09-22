@@ -205,7 +205,7 @@ const start = () => {
   }
   // PRODUCTION MODE: Run every hour
   console.log('🎆 Starting in PRODUCTION MODE - notifications every hour');
-  cronJob = cron.schedule('0 * * * *', () => sendHydrationReminders(false), {
+  cronJob = cron.schedule('* * * * *', () => sendHydrationReminders(false), {
     scheduled: true,
     timezone: 'UTC' // Use UTC, users can set their timezone in profile
   });
