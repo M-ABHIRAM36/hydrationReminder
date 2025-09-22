@@ -37,12 +37,19 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
+
 // CORS configuration
-const allowedOrigins = [
+let allowedOrigins = [
   'http://localhost:3000',
-  'http://localhost:5173', // Vite dev server
-  process.env.FRONTEND_URL
-].filter(Boolean);
+  'http://localhost:5173'
+];
+if (process.env.ALLOWED_ORIGINS) {
+  allowedOrigins = process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim());
+}
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+allowedOrigins = Array.from(new Set(allowedOrigins.filter(Boolean)));
 
 app.use(cors({
   origin: function (origin, callback) {
